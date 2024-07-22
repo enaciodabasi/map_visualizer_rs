@@ -8,12 +8,13 @@ use eframe::{
     emath,
 };
 use rusttype::Point;
-use std::{borrow::Borrow, default};
+use std::{borrow::Borrow, default, option};
 
 pub struct App {
     map: Map,
     map_middle_point_coord: egui::Pos2,
     points: Vec<Pos2>,
+    grid_line_spacing: f64,
 }
 
 impl Default for App {
@@ -21,12 +22,25 @@ impl Default for App {
         Self {
             map: Map::new(1.0, 500, 500),
             map_middle_point_coord: egui::pos2(500.0 / 2.0, 500.0 / 2.0),
-            points: Vec::default(), // Holds coordinates of the points
+            points: Vec::default(), // Holds coordinates of the points,
+            grid_line_spacing: 10.0,
         }
     }
 }
 
 impl App {
+
+    fn new(map: map::Map, grid_line_spacing: Option<f64>) -> App{
+      let mut grid_line_spacing_res;
+      match grid_line_spacing {
+        Some(grid_line_spacing) => grid_line_spacing
+
+        None => grid_line_spacing_res = 100.0;
+      };
+
+      App { map: (), map_middle_point_coord: (), points: (), grid_line_spacing: () }
+    }
+
     fn setup_map(&mut self, map: Map) {
         self.map = map;
         self.map_middle_point_coord =
@@ -34,33 +48,49 @@ impl App {
     }
 
     fn generate_grid_lines(&self, tf: &RectTransform) -> (Vec<egui::Shape>, Vec<egui::Shape>) {
-      
         let mut horizontal_lines: Vec<egui::Shape> = Vec::default();
         let mut vertical_lines: Vec<egui::Shape> = Vec::default();
         let map_size = self.map.get_size();
         let num_lines: u32 = (map_size.x / 10.0) as u32;
-        
+
         let mut i = 0;
         let y_begin: f32 = 0.0;
         let y_end: f32 = map_size.y;
         let mut x_begin: f32 = 0.0;
-        
-        while i != num_lines{
 
-          let start_point: Pos2 = Pos2 { x: x_begin, y: y_begin };
-          let start_point = tf.transform_pos(start_point);
-          let end_point: Pos2 = Pos2 {x: x_begin, y: y_end};
-          let end_point = tf.transform_pos(end_point);
-          horizontal_lines.push(egui::Shape::line_segment([start_point, end_point], egui::Stroke::new(0.25, egui::Color32::from_rgb(255, 255, 255))));
-          
-          let start_point: Pos2 = Pos2 { x: y_begin, y: x_begin };
-          let start_point = tf.transform_pos(start_point);
-          let end_point: Pos2 = Pos2 {x: y_end, y: x_begin};
-          let end_point = tf.transform_pos(end_point);
-          
-          vertical_lines.push(egui::Shape::line_segment([start_point, end_point], egui::Stroke::new(0.25, egui::Color32::from_rgb(255, 255, 255))));
-          i += 1;
-          x_begin += 10.0;
+        while i != num_lines {
+            let start_point: Pos2 = Pos2 {
+                x: x_begin,
+                y: y_begin,
+            };
+            let start_point = tf.transform_pos(start_point);
+            let end_point: Pos2 = Pos2 {
+                x: x_begin,
+                y: y_end,
+            };
+            let end_point = tf.transform_pos(end_point);
+            horizontal_lines.push(egui::Shape::line_segment(
+                [start_point, end_point],
+                egui::Stroke::new(0.25, egui::Color32::from_rgb(255, 255, 255)),
+            ));
+
+            let start_point: Pos2 = Pos2 {
+                x: y_begin,
+                y: x_begin,
+            };
+            let start_point = tf.transform_pos(start_point);
+            let end_point: Pos2 = Pos2 {
+                x: y_end,
+                y: x_begin,
+            };
+            let end_point = tf.transform_pos(end_point);
+
+            vertical_lines.push(egui::Shape::line_segment(
+                [start_point, end_point],
+                egui::Stroke::new(0.25, egui::Color32::from_rgb(255, 255, 255)),
+            ));
+            i += 1;
+            x_begin += 10.0;
         }
 
         (horizontal_lines, vertical_lines)
@@ -102,9 +132,10 @@ impl eframe::App for App {
                     .collect();
 
                 let map_size = self.map.get_size();
-                
-                let grid_lines: (Vec<egui::Shape>, Vec<egui::Shape>) = self.generate_grid_lines(&to_screen);  
-                
+
+                let grid_lines: (Vec<egui::Shape>, Vec<egui::Shape>) =
+                    self.generate_grid_lines(&to_screen);
+
                 painter.add(Shape::rect_filled(
                     response.rect,
                     Rounding::default(),
