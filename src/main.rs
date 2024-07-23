@@ -12,5 +12,9 @@ fn main() -> eframe::Result {
                         .with_min_inner_size([600.0, 600.0]),
                         ..Default::default()
     };
-    eframe::run_native("deneme", native_options, Box::new(|cc| Ok(Box::new(App::default()))))
+
+    eframe::run_native(
+        "deneme", 
+        native_options, 
+        Box::new(|cc| Ok(Box::new(App::new(map::Map::new(1.0, 500, 500), Some(50.0))))))
 }

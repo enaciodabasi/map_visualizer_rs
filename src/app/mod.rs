@@ -1,5 +1,6 @@
 use crate::map::{self, Map};
 use core::num;
+use std::sync::mpsc::Sender;
 use eframe::egui;
 use eframe::emath::RectTransform;
 use eframe::{
@@ -8,43 +9,42 @@ use eframe::{
     emath,
 };
 use rusttype::Point;
-use std::{borrow::Borrow, default, option};
+use std::{borrow::Borrow, default, option, sync::mpsc};
 
 pub struct App {
     map: Map,
-    map_middle_point_coord: egui::Pos2,
     points: Vec<Pos2>,
     grid_line_spacing: f64,
+    point_sender: mpsc::Sender<Vec<Pos2>>,
+    point_receiver: mpsc::Receiver<Vec<Pos2>>
 }
 
 impl Default for App {
     fn default() -> Self {
-        Self {
-            map: Map::new(1.0, 500, 500),
-            map_middle_point_coord: egui::pos2(500.0 / 2.0, 500.0 / 2.0),
-            points: Vec::default(), // Holds coordinates of the points,
-            grid_line_spacing: 10.0,
-        }
+        Self::new(map::Map::new(1.0, 500, 500), Some(50.0))
     }
 }
 
+// TODO: Add a factory function
+//pub fn build_app()
+
 impl App {
 
-    fn new(map: map::Map, grid_line_spacing: Option<f64>) -> App{
+    pub fn new(map: map::Map, grid_line_spacing_opt: Option<f64>) -> App{
       let mut grid_line_spacing_res;
-      match grid_line_spacing {
-        Some(grid_line_spacing) => grid_line_spacing
+      match grid_line_spacing_opt {
+        Some(grid_line_spacing) => grid_line_spacing_res = grid_line_spacing,
 
-        None => grid_line_spacing_res = 100.0;
+        None => grid_line_spacing_res = 100.0,
       };
 
-      App { map: (), map_middle_point_coord: (), points: (), grid_line_spacing: () }
+      let (tx, rx) = mpsc::channel::<Vec<Pos2>>();
+
+      App { map: (map), points: (Vec::default()), grid_line_spacing: (grid_line_spacing_res) , point_sender: tx, point_receiver: rx}    
     }
 
     fn setup_map(&mut self, map: Map) {
         self.map = map;
-        self.map_middle_point_coord =
-            egui::pos2(self.map.get_size().x / 2.0, self.map.get_size().y / 2.0);
     }
 
     fn generate_grid_lines(&self, tf: &RectTransform) -> (Vec<egui::Shape>, Vec<egui::Shape>) {
@@ -90,7 +90,7 @@ impl App {
                 egui::Stroke::new(0.25, egui::Color32::from_rgb(255, 255, 255)),
             ));
             i += 1;
-            x_begin += 10.0;
+            x_begin += self.grid_line_spacing as f32;
         }
 
         (horizontal_lines, vertical_lines)
@@ -101,6 +101,8 @@ impl eframe::App for App {
     fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
         // Add central panel
         // The central panel consists of a drawn map ...
+        
+        let (tx, rx) = mpsc::channel::<Vec<Pos2>>();
 
         eframe::egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             eframe::egui::menu::bar(ui, |ui| {
@@ -110,7 +112,7 @@ impl eframe::App for App {
 
         eframe::egui::CentralPanel::default().show(ctx, |ui| {
             Frame::canvas(ui.style()).show(ui, |ui| {
-                let (response, painter) = ui.allocate_painter(self.map.get_size(), Sense::hover());
+                let (response, mut painter) = ui.allocate_painter(self.map.get_size(), Sense::hover());
                 let to_screen = emath::RectTransform::from_to(
                     Rect::from_min_size(Pos2::ZERO, response.rect.size()),
                     response.rect,
@@ -141,9 +143,15 @@ impl eframe::App for App {
                     Rounding::default(),
                     Color32::from_rgb(122, 122, 122),
                 ));
+                
+                if !points_on_screen.is_empty() {
+                    painter.add(points_on_screen);    
+                }
+                
+                painter.set_opacity(0.3);
                 painter.add(grid_lines.0);
                 painter.add(grid_lines.1);
-                painter.add(points_on_screen);
+                
             });
         });
     }
