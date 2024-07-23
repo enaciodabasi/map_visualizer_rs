@@ -1,11 +1,13 @@
+#![deny(clippy::all)]
+#![forbid(unsafe_code)]
 use app::App;
 pub use eframe::egui;
+use tokio::runtime::Runtime;
 
 mod map;
 mod app;
 
-
-fn main() -> eframe::Result {
+fn main() /* -> eframe::Result */ {
 
     let native_options = eframe::NativeOptions {
         viewport     : egui::ViewportBuilder::default()
@@ -13,8 +15,10 @@ fn main() -> eframe::Result {
                         ..Default::default()
     };
 
+
+
     eframe::run_native(
         "deneme", 
         native_options, 
-        Box::new(|cc| Ok(Box::new(App::new(map::Map::new(1.0, 500, 500), Some(50.0))))))
+        Box::new(|cc| Ok(Box::new(App::new(map::Map::new(1.0, 500, 500), Some(50.0))))));
 }

@@ -9,14 +9,21 @@ use eframe::{
     emath,
 };
 use rusttype::Point;
-use std::{borrow::Borrow, default, option, sync::mpsc};
+use std::{borrow::Borrow, default, option, sync::mpsc, thread};
+
+fn point_listening_function(sender: &mpsc::Sender<()>) {
+  
+  
+
+}
 
 pub struct App {
     map: Map,
     points: Vec<Pos2>,
     grid_line_spacing: f64,
     point_sender: mpsc::Sender<Vec<Pos2>>,
-    point_receiver: mpsc::Receiver<Vec<Pos2>>
+    point_receiver: mpsc::Receiver<Vec<Pos2>>,
+    sender_thread_handle: thread::JoinHandle<()>,
 }
 
 impl Default for App {
@@ -39,8 +46,10 @@ impl App {
       };
 
       let (tx, rx) = mpsc::channel::<Vec<Pos2>>();
-
-      App { map: (map), points: (Vec::default()), grid_line_spacing: (grid_line_spacing_res) , point_sender: tx, point_receiver: rx}    
+      let sender_thread_handle = thread::spawn(|| {
+        
+      });
+      App { map: (map), points: (Vec::default()), grid_line_spacing: (grid_line_spacing_res) , point_sender: tx, point_receiver: rx, sender_thread_handle: sender_thread_handle}    
     }
 
     fn setup_map(&mut self, map: Map) {
@@ -101,8 +110,11 @@ impl eframe::App for App {
     fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
         // Add central panel
         // The central panel consists of a drawn map ...
-        
-        let (tx, rx) = mpsc::channel::<Vec<Pos2>>();
+
+        let receive_result = self.point_receiver.try_recv();
+        if receive_result.is_ok() {
+          ctx.request_repaint();
+        }
 
         eframe::egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             eframe::egui::menu::bar(ui, |ui| {
