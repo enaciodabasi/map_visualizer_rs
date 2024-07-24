@@ -23,7 +23,7 @@ pub struct App {
     grid_line_spacing: f64,
     point_sender: mpsc::Sender<Vec<Pos2>>,
     point_receiver: mpsc::Receiver<Vec<Pos2>>,
-    sender_thread_handle: thread::JoinHandle<()>,
+    sender_thread_handle: Option<thread::JoinHandle<()>>,
 }
 
 impl Default for App {
@@ -49,7 +49,13 @@ impl App {
       let sender_thread_handle = thread::spawn(|| {
         
       });
-      App { map: (map), points: (Vec::default()), grid_line_spacing: (grid_line_spacing_res) , point_sender: tx, point_receiver: rx, sender_thread_handle: sender_thread_handle}    
+      App { map: (map), points: (Vec::default()), grid_line_spacing: (grid_line_spacing_res) , point_sender: tx, point_receiver: rx, sender_thread_handle: Some(sender_thread_handle)}    
+    }
+    
+    pub fn exit(&mut self) {
+        if let Some(thread) = self.sender_thread_handle.take() {
+            thread.join().unwrap();
+        }
     }
 
     fn setup_map(&mut self, map: Map) {
@@ -166,5 +172,9 @@ impl eframe::App for App {
                 
             });
         });
+    }
+
+    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
+        self.exit();
     }
 }
