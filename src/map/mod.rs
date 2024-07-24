@@ -1,12 +1,10 @@
 use eframe::egui::Vec2;
-use rusttype::Point;
 
 pub struct Map
 {
   resolution : f64, // Meters / Cell
   width : u32,
   height : u32,
-  origin : rusttype::Point<f64> 
 }
 
 impl Map {
@@ -15,7 +13,6 @@ impl Map {
       resolution: res,
       width: w,
       height: h,
-      origin: rusttype::Point{x: 0.0, y: 0.0}
     }
   }
 
@@ -23,10 +20,6 @@ impl Map {
     let size_vector = Vec2::new(self.width as f32, self.height as f32);
 
     size_vector
-  }
-
-  pub fn get_origin(&self) -> rusttype::Point<f64>{
-    self.origin
   }
 }
 

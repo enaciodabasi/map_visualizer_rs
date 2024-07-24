@@ -6,6 +6,7 @@ use tokio::runtime::Runtime;
 
 mod map;
 mod app;
+mod udp_worker;
 
 fn main() /* -> eframe::Result */ {
 
@@ -14,8 +15,6 @@ fn main() /* -> eframe::Result */ {
                         .with_min_inner_size([600.0, 600.0]),
                         ..Default::default()
     };
-
-
 
     eframe::run_native(
         "deneme", 

@@ -1,4 +1,5 @@
 use crate::map::{self, Map};
+use crate::udp_worker::{self, UDP_Worker};
 use core::num;
 use std::sync::mpsc::Sender;
 use eframe::egui;
@@ -8,22 +9,15 @@ use eframe::{
     egui_glow::painter,
     emath,
 };
-use rusttype::Point;
-use std::{borrow::Borrow, default, option, sync::mpsc, thread};
-
-fn point_listening_function(sender: &mpsc::Sender<()>) {
-  
-  
-
-}
+use std::{borrow::Borrow, default, option, sync::mpsc, thread, net};
 
 pub struct App {
     map: Map,
     points: Vec<Pos2>,
     grid_line_spacing: f64,
-    point_sender: mpsc::Sender<Vec<Pos2>>,
     point_receiver: mpsc::Receiver<Vec<Pos2>>,
-    sender_thread_handle: Option<thread::JoinHandle<()>>,
+    communication_handler: udp_worker::UDP_Worker
+    /* sender_thread_handle: Option<thread::JoinHandle<()>>, */
 }
 
 impl Default for App {
@@ -31,9 +25,6 @@ impl Default for App {
         Self::new(map::Map::new(1.0, 500, 500), Some(50.0))
     }
 }
-
-// TODO: Add a factory function
-//pub fn build_app()
 
 impl App {
 
@@ -46,16 +37,21 @@ impl App {
       };
 
       let (tx, rx) = mpsc::channel::<Vec<Pos2>>();
-      let sender_thread_handle = thread::spawn(|| {
-        
-      });
-      App { map: (map), points: (Vec::default()), grid_line_spacing: (grid_line_spacing_res) , point_sender: tx, point_receiver: rx, sender_thread_handle: Some(sender_thread_handle)}    
+      
+      App { 
+        map: (map), 
+        points: (Vec::default()), 
+        grid_line_spacing: (grid_line_spacing_res) , 
+        point_receiver: rx, 
+        communication_handler: UDP_Worker::new(tx)
+        /* sender_thread_handle: Some(sender_thread_handle) */
+      }    
     }
     
     pub fn exit(&mut self) {
-        if let Some(thread) = self.sender_thread_handle.take() {
+        /* if let Some(thread) = self.sender_thread_handle.take() {
             thread.join().unwrap();
-        }
+        } */
     }
 
     fn setup_map(&mut self, map: Map) {
