@@ -1,74 +1,86 @@
-
+use eframe::egui::{accesskit::Point, Pos2};
+use serde::{Deserialize, Serialize};
+use serde_json;
 use std::{
-  clone, fmt::Result, net::UdpSocket, option, result, sync::mpsc, thread, vec
+    clone,
+    fmt::Result,
+    net::UdpSocket,
+    option, result,
+    sync::{mpsc, Arc},
+    thread, vec,
 };
-use serde::{Serialize, Deserialize};
-use serde_json::{Result, Value};
-
-use eframe::egui::Pos2;
-use tokio::io::join;
 
 #[derive(Serialize, Deserialize)]
 struct Point2D {
-  x: f64,
-  y: f64
+    x: f64,
+    y: f64,
 }
 
 pub struct UDP_Worker {
-  addr: String,
-  sender: Option<mpsc::Sender<Vec<Pos2>>>,
-  thread_handle: Option<thread::JoinHandle<()>>,
-  connected: bool,
+    addr: String,
+    sender: Option<mpsc::Sender<Vec<Pos2>>>,
+    keep_thread_alive: Arc<()>,
+    thread_handle: Option<thread::JoinHandle<()>>,
+    connected: bool,
 }
 
 impl UDP_Worker {
-  pub fn new(sender : mpsc::Sender<Vec<Pos2>>) -> UDP_Worker {
-    
-    let mut connected: bool = false;
-     
-    let sender_thread_handle = thread::spawn(|| {
-      
-      let socket_res = UdpSocket::bind(address_clone);
-      let socket: Option<UdpSocket> = match socket_res {
-        Ok(socket) => Some(socket),
-        Err(error) => None,
-      };
-
-      while socket.is_none()  {
-        
-      }
-      loop {
-
-      }
-    
-    });
-
-    UDP_Worker { 
-      addr: String::default(),
-      sender: Some(sender),
-      thread_handle: Some(sender_thread_handle),
-      connected: connected,
+    pub fn new(sender: mpsc::Sender<Vec<Pos2>>) -> UDP_Worker {
+        let mut connected: bool = false;
+        let keepalive = Arc::default();
+        UDP_Worker {
+            addr: String::default(),
+            sender: Some(sender),
+            keep_thread_alive: keepalive,
+            thread_handle: None,
+            connected: connected,
+        }
     }
-  }
 
-  pub fn listen(address: String) -> result::Result<(), ()> {
+    pub fn listen(&mut self, address: String) -> result::Result<(), ()> {
+        let socket = UdpSocket::bind(address);
+        if socket.is_err() {
+            return Err(());
+        }
 
-    
-      
-    Ok(())
-  }
+        let keepalive_recv = Arc::downgrade(&self.keep_thread_alive);
+        // UDP Listening Thread
+        let socket = socket.unwrap();
+        let sender = self.sender.take().unwrap();
+        let join_thread_handle = thread::spawn(move || {
+            let mut buff = [0u8; 1500];
 
-  pub fn is_connected(&self) -> bool{
-    self.connected.clone()
-  }
-  
+            while keepalive_recv.upgrade().is_some() {
+                match socket.recv_from(&mut buff) {
+                    Ok((dtgrm_size, src)) => {
+                        let points: Vec<Point2D> = serde_json::from_slice(&buff).unwrap();
+                        if !points.is_empty() {
+                            let points_for_screen: Vec<Pos2> =
+                                points.iter().enumerate().map(|(i, value)| {
+                                  Pos2 { x: (*value).x as f32, y: (*value).y as f32 }
+                                }).collect();
+                            sender.send(points_for_screen);
+                        }
+                    }
+                    Err(e) => {}
+                }
+            }
+        });
+
+        self.thread_handle = Some(join_thread_handle);
+
+        Ok(())
+    }
+
+    pub fn is_connected(&self) -> bool {
+        self.connected.clone()
+    }
 }
 
 impl Drop for UDP_Worker {
-  fn drop(&mut self) {
-    let join_handle = self.thread_handle.take();
-    if let Some(handle) = self.thread_handle.take() {
-      handle.join();
+    fn drop(&mut self) {
+        if let Some(handle) = self.thread_handle.take() {
+            handle.join();
+        }
     }
-  }
 }

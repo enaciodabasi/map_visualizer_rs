@@ -2,7 +2,6 @@
 #![forbid(unsafe_code)]
 use app::App;
 pub use eframe::egui;
-use tokio::runtime::Runtime;
 
 mod map;
 mod app;
