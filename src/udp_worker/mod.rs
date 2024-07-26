@@ -44,6 +44,7 @@ impl UDP_Worker {
         }
 
         let keepalive_recv = Arc::downgrade(&self.keep_thread_alive);
+        let mut received_points: Vec<Pos2> = Vec::default();
         // UDP Listening Thread
         let socket = socket.unwrap();
         let sender = self.sender.take().unwrap();
@@ -55,14 +56,34 @@ impl UDP_Worker {
                     Ok((dtgrm_size, src)) => {
                         let points: Vec<Point2D> = serde_json::from_slice(&buff).unwrap();
                         if !points.is_empty() {
-                            let points_for_screen: Vec<Pos2> =
+                            let points_on_screen =
                                 points.iter().enumerate().map(|(i, value)| {
                                   Pos2 { x: (*value).x as f32, y: (*value).y as f32 }
                                 }).collect();
-                            sender.send(points_for_screen);
+                            let send_res = sender.send(points_on_screen);
+                            match send_res {
+                              Ok(()) => {
+                                received_points.clear();
+                              }
+                              Err(e) => {
+                                received_points = e.0;
+                              }
+                            }
                         }
                     }
-                    Err(e) => {}
+                    Err(e) => {
+                      if !received_points.is_empty() {
+                        let send_res = sender.send(received_points.clone());
+                            match send_res {
+                              Ok(()) => {
+                                received_points.clear();
+                              }
+                              Err(e) => {
+                                received_points = e.0;
+                              }
+                            }
+                      }
+                    }
                 }
             }
         });
